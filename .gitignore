@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.py[cod]
+.coverage
+.whitebox_coverage
+htmlcov/
+.hypothesis/
+reports/charts/*.png
+reports/*.csv
+reports/*.json
+crashes/blackbox/*.json
+crashes/whitebox/*.json
