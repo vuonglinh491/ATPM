@@ -163,6 +163,7 @@ ATPM/
 ├── corpus/                    # Seed input hợp lệ và không hợp lệ
 ├── crashes/                   # Finding do fuzzer lưu lại
 ├── reports/                   # CSV, JSON và biểu đồ
+├── BAO_CAO_TIEN_DO.md         # Báo cáo tiến độ thực hiện đề tài
 ├── main.py                    # Menu demo tương tác
 ├── experiment.py              # Chạy thực nghiệm tự động
 ├── reporting.py               # Đọc kết quả và tạo biểu đồ
@@ -287,3 +288,7 @@ Các input bất thường chỉ phục vụ kiểm thử cục bộ. Project kh
 - Tích hợp AFL++ hoặc libFuzzer cho native program.
 - Chạy fuzzing trong CI/CD hoặc Docker.
 - Xây dựng dashboard theo dõi coverage và finding.
+
+## 13. Báo cáo tiến độ
+
+Xem [BAO_CAO_TIEN_DO.md](BAO_CAO_TIEN_DO.md) để theo dõi phần đã hoàn thành, minh chứng test, phần đang thực hiện, kế hoạch tiếp theo và kịch bản trình bày với giảng viên.
