@@ -1,11 +1,18 @@
 # Product Analyzer Fuzz Testing
 
-Dự án mô phỏng hệ thống kiểm thử fuzzing cho một bộ phân tích sản phẩm trong thương mại điện tử. Hệ thống nhận dữ liệu sản phẩm dạng JSON hoặc CSV, kiểm tra dữ liệu theo các luật nghiệp vụ, tính toán thông tin dẫn xuất và trả về kết quả phân tích.
+## Mô tả dự án
+
+Product Analyzer Fuzz Testing là đồ án mô phỏng quy trình kiểm thử độ tin cậy và an toàn của một thành phần xử lý dữ liệu sản phẩm thương mại điện tử. Chương trình nhận sản phẩm ở định dạng JSON hoặc CSV, xác thực trường dữ liệu và kiểu, kiểm tra các giới hạn nghiệp vụ, sau đó tính giá sau giảm và giá trị tồn kho.
+
+Dự án kết hợp black-box fuzzing để quan sát hành vi từ bên ngoài, white-box fuzzing để tận dụng coverage của mã Python, và một harness C để mô phỏng các rủi ro về biên buffer, kiểu dữ liệu, cấp phát và vòng đời bộ nhớ. Kết quả được lưu thành báo cáo để có thể xem lại input, trạng thái xử lý và phân loại CWE.
+
+Mục tiêu là giúp thử nghiệm có hệ thống với dữ liệu hợp lệ, dữ liệu biên và dữ liệu bất thường; so sánh cách hai phương pháp fuzzing tiếp cận chương trình; đồng thời thực hành nhận diện các lớp điểm yếu bộ nhớ. Harness C chỉ mô phỏng và chặn các trạng thái nguy hiểm, không chủ ý tạo hỏng bộ nhớ thật. CWE là nhãn phân loại, không khẳng định sản phẩm có lỗ hổng hay CVE đã được cấp.
 
 Dự án triển khai hai phương pháp:
 
 - **Black-box fuzzing**: fuzzer không sử dụng thông tin bên trong mã nguồn, chỉ gửi input và quan sát output, exception hoặc timeout.
 - **White-box fuzzing**: fuzzer biết mã nguồn và sử dụng coverage feedback để giữ lại những input đi qua dòng xử lý mới.
+- **Native memory fuzzing**: harness C mô phỏng nhập dữ liệu sản phẩm, kiểm tra biên/kiểu và vòng đời bộ nhớ; fuzzer ghi kết quả theo CWE.
 
 ## 1. Chức năng chính
 
@@ -41,6 +48,10 @@ Fuzzer tạo hoặc biến đổi nhiều loại input bất thường:
 - Field bổ sung không được định nghĩa.
 
 Fuzzer theo dõi các kết quả `VALID`, `INVALID`, `EXCEPTION`, `TIMEOUT`, `INVALID_OUTPUT` và `LOGIC_BUG`. Finding được lưu để có thể kiểm tra lại.
+
+Harness native bổ sung các tình huống giới hạn tên, sai kiểu, con trỏ bắt buộc bị thiếu, cấp phát quá lớn, phép nhân kích thước bị tràn, rò rỉ bộ nhớ, giải phóng hai lần và truy cập sau khi giải phóng. Đây là mô hình an toàn có kiểm soát: không thực hiện ghi tràn, dereference con trỏ null, double-free hoặc leak heap thật.
+
+Các finding được gắn CWE để mô tả lớp lỗi, gồm CWE-121, CWE-190, CWE-401, CWE-415, CWE-416, CWE-476 và CWE-789. CWE là phân loại điểm yếu, không phải bằng chứng một lỗ hổng đã tồn tại trong sản phẩm. Cột CVE để trống; chỉ điền CVE sau khi có lỗ hổng cụ thể được xác minh và mã CVE chính thức.
 
 ## 2. Ví dụ input và output
 
@@ -158,7 +169,10 @@ ATPM/
 │   ├── generators.py          # Sinh input và seed corpus
 │   ├── mutations.py           # Biến đổi input
 │   ├── blackbox_fuzzer.py     # Black-box executor và oracle
-│   └── whitebox_fuzzer.py     # Coverage-guided fuzzer
+│   ├── whitebox_fuzzer.py     # Coverage-guided fuzzer
+│   └── c_memory_fuzzer.py     # Fuzzer cho mô hình native và báo cáo CWE
+├── c_targets/
+│   └── product_memory_model.c # Mô phỏng kiểu, biên và vòng đời cấp phát
 ├── tests/                     # Test normal, boundary, regression
 ├── corpus/                    # Seed input hợp lệ và không hợp lệ
 ├── crashes/                   # Finding do fuzzer lưu lại
@@ -186,6 +200,8 @@ python -m pip install -r requirements.txt
 ```
 
 Kết quả mong đợi là Python 3.12 trở lên và các package `pytest`, `coverage`, `hypothesis`, `matplotlib` được cài trong virtual environment.
+
+Để chạy native memory fuzzing, cài một C compiler có lệnh `gcc`, `clang` hoặc `cc` trong `PATH`. Trên Windows có thể dùng GCC từ MSYS2 hoặc LLVM Clang. Các phần Python vẫn chạy khi chưa cài compiler; native fuzzer sẽ trả trạng thái `SKIPPED`.
 
 Có thể dùng trực tiếp interpreter trong môi trường ảo nếu chưa activate:
 
@@ -247,9 +263,17 @@ Các file sinh ra:
 
 - `reports/blackbox_results.csv`: từng iteration, loại input, kết quả, lỗi và thời gian.
 - `reports/whitebox_results.csv`: từng iteration, kết quả và số coverage point.
+- `reports/c_memory_results.csv`: từng ca native, kết quả mô phỏng, CWE và CVE (để trống nếu chưa có CVE xác minh).
 - `reports/summary.json`: thống kê tổng hợp của lần experiment gần nhất.
 - `reports/charts/input_results.png`: phân bố kết quả black-box.
 - `reports/charts/whitebox_coverage.png`: diễn biến coverage của white-box.
+- `reports/charts/native_cwe_classifications.png`: số phân loại CWE, gồm cả trường hợp bị chặn, nếu có report native.
+
+Chạy riêng harness C trong menu chọn `Run C Memory Fuzzing`, hoặc chạy toàn bộ experiment. Với compiler đã có trong `PATH`:
+
+```powershell
+.venv\Scripts\python.exe -c "from fuzzing.c_memory_fuzzer import CMemoryFuzzer; print(CMemoryFuzzer().run(100))"
+```
 
 ## 9. Tái hiện finding
 
@@ -280,7 +304,21 @@ Các số liệu trong báo cáo phải lấy sau khi chạy experiment thực t
 
 Các input bất thường chỉ phục vụ kiểm thử cục bộ. Project không cố tình tạo lỗ hổng khai thác thật; exception và finding được ghi nhận để phục vụ phân tích lỗi.
 
-## 12. Hướng phát triển
+## 12. Phân loại CWE và CVE
+
+| Tình huống mô phỏng | Kết quả | CWE |
+|---|---|---|
+| Tên vượt sức chứa buffer stack, bị chặn trước khi copy | BLOCKED | CWE-121 |
+| Nhân kích thước cấp phát vượt giới hạn số nguyên | BLOCKED | CWE-190 |
+| Cấp phát không được giải phóng khi kết thúc scope | DETECTED | CWE-401 |
+| Giải phóng cùng một vùng nhớ hai lần | DETECTED | CWE-415 |
+| Truy cập vùng nhớ sau khi giải phóng | DETECTED | CWE-416 |
+| Thiếu con trỏ bắt buộc, bị chặn trước dereference | BLOCKED | CWE-476 |
+| Yêu cầu cấp phát vượt ngưỡng cấu hình | BLOCKED | CWE-789 |
+
+`BLOCKED` nghĩa là input mô phỏng một điều kiện nguy hiểm nhưng guard đã ngăn hành vi; `DETECTED` nghĩa là mô hình ownership phát hiện trạng thái lỗi. Không diễn giải các kết quả này thành CVE của sản phẩm thật.
+
+## 13. Hướng phát triển
 
 - Bổ sung branch coverage và path coverage chi tiết.
 - Thêm Hypothesis cho property-based testing.
@@ -289,6 +327,6 @@ Các input bất thường chỉ phục vụ kiểm thử cục bộ. Project kh
 - Chạy fuzzing trong CI/CD hoặc Docker.
 - Xây dựng dashboard theo dõi coverage và finding.
 
-## 13. Báo cáo tiến độ
+## 14. Báo cáo tiến độ
 
 Xem [BAO_CAO_TIEN_DO.md](BAO_CAO_TIEN_DO.md) để theo dõi phần đã hoàn thành, minh chứng test, phần đang thực hiện, kế hoạch tiếp theo và kịch bản trình bày với giảng viên.

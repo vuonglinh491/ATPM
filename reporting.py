@@ -20,6 +20,7 @@ def generate_charts(report_dir: str | Path = "reports") -> list[str]:
     outputs: list[str] = []
     blackbox = read_results(report_dir / "blackbox_results.csv") if (report_dir / "blackbox_results.csv").exists() else []
     whitebox = read_results(report_dir / "whitebox_results.csv") if (report_dir / "whitebox_results.csv").exists() else []
+    native = read_results(report_dir / "c_memory_results.csv") if (report_dir / "c_memory_results.csv").exists() else []
     if blackbox:
         counts: dict[str, int] = {}
         for row in blackbox:
@@ -33,6 +34,22 @@ def generate_charts(report_dir: str | Path = "reports") -> list[str]:
         plt.savefig(path, dpi=140)
         plt.close()
         outputs.append(str(path))
+    if native:
+        cwe_counts: dict[str, int] = {}
+        for row in native:
+            if row.get("cwe"):
+                cwe_counts[row["cwe"]] = cwe_counts.get(row["cwe"], 0) + 1
+        if cwe_counts:
+            plt.figure(figsize=(7, 4))
+            labels, values = zip(*sorted(cwe_counts.items()))
+            plt.bar(labels, values, color="#32805a")
+            plt.title("Native memory CWE classifications")
+            plt.ylabel("Findings")
+            plt.tight_layout()
+            path = chart_dir / "native_cwe_classifications.png"
+            plt.savefig(path, dpi=140)
+            plt.close()
+            outputs.append(str(path))
     if whitebox:
         points = [int(row["coverage_points"]) for row in whitebox]
         plt.figure(figsize=(7, 4))

@@ -5,6 +5,7 @@ import json
 from analyzer.product_analyzer import ProductAnalyzer
 from experiment import run_experiment
 from fuzzing.blackbox_fuzzer import BlackBoxFuzzer
+from fuzzing.c_memory_fuzzer import CMemoryFuzzer
 from fuzzing.whitebox_fuzzer import WhiteBoxFuzzer
 from reporting import generate_charts
 
@@ -21,7 +22,8 @@ def menu() -> None:
         print("4. Generate Charts")
         print("5. Show Crash Results")
         print("6. Generate Report")
-        print("7. Exit")
+        print("7. Run C Memory Fuzzing")
+        print("8. Exit")
         choice = input("Select: ").strip()
         if choice == "1":
             raw = input("JSON product (Enter for demo): ").strip() or '{"id":"P1","name":"Phone","category":"Mobile","price":100,"stock":2,"discount":10,"rating":4}'
@@ -38,6 +40,8 @@ def menu() -> None:
         elif choice == "6":
             print(run_experiment(1000))
         elif choice == "7":
+            print(CMemoryFuzzer().run(100))
+        elif choice == "8":
             break
         else:
             print("Invalid choice")
