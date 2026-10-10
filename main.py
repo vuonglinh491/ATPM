@@ -5,7 +5,7 @@ import json
 from analyzer.product_analyzer import ProductAnalyzer
 from experiment import run_experiment
 from fuzzing.blackbox_fuzzer import BlackBoxFuzzer
-from fuzzing.c_memory_fuzzer import CMemoryFuzzer
+from fuzzing.memory_fuzzer import MemoryModelFuzzer
 from fuzzing.whitebox_fuzzer import WhiteBoxFuzzer
 from reporting import generate_charts
 
@@ -22,7 +22,7 @@ def menu() -> None:
         print("4. Generate Charts")
         print("5. Show Crash Results")
         print("6. Generate Report")
-        print("7. Run C Memory Fuzzing")
+        print("7. Run Memory Model Fuzzing (Python)")
         print("8. Exit")
         choice = input("Select: ").strip()
         if choice == "1":
@@ -40,7 +40,7 @@ def menu() -> None:
         elif choice == "6":
             print(run_experiment(1000))
         elif choice == "7":
-            print(CMemoryFuzzer().run(100))
+            print(MemoryModelFuzzer().run(100))
         elif choice == "8":
             break
         else:

@@ -13,5 +13,6 @@
 11. **Experiment**: cùng số lượng input, seed cố định, nhiều quy mô.
 12. **Results**: trình bày bảng từ `reports/summary.json` và chart sinh tự động.
 13. **Comparison**: coverage, bugs, thời gian, chi phí triển khai.
-14. **Demo**: chạy `main.py`, chọn hai fuzzer, mở crash/report.
-15. **Conclusion**: black-box dễ tiếp cận; white-box đi sâu; kết hợp hai phương pháp.
+14. **Demo giao diện**: chạy `app.py`, phân tích JSON, chạy fuzzers và mở bảng kết quả/biểu đồ.
+15. **Memory model**: Python mô phỏng các tình huống CWE, không cần compiler C và không làm hỏng bộ nhớ thật.
+16. **Conclusion**: black-box dễ tiếp cận; white-box đi sâu; memory model minh họa các lỗi bộ nhớ theo cách an toàn.

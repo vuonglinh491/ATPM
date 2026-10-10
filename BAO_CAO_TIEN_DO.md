@@ -11,7 +11,7 @@ Hai phương pháp fuzzing được triển khai và so sánh:
 - **Black-box fuzzing:** chỉ quan sát input, output, exception và timeout của chương trình.
 - **White-box fuzzing:** sử dụng thông tin mã nguồn và coverage feedback để lựa chọn input có khả năng đi qua các dòng xử lý mới.
 
-Mục tiêu của đề tài là phát hiện các input bất thường, ghi nhận finding có thể tái hiện, đo độ bao phủ và đánh giá ưu nhược điểm của hai phương pháp.
+Mục tiêu của đề tài là phát hiện các input bất thường, ghi nhận finding có thể tái hiện, đo độ bao phủ và đánh giá black-box/white-box. Mô hình bộ nhớ Python và giao diện desktop hỗ trợ mô phỏng, chạy thử và trình bày kết quả.
 
 ## 2. Mục tiêu thực hiện
 
@@ -23,6 +23,7 @@ Mục tiêu của đề tài là phát hiện các input bất thường, ghi nh
 6. Xây dựng white-box fuzzer có coverage feedback và corpus mở rộng tự động.
 7. Sinh báo cáo CSV, summary JSON và biểu đồ kết quả.
 8. So sánh hiệu quả của black-box và white-box trên cùng quy mô input.
+9. Mô phỏng các tình huống CWE bằng Python thuần và cung cấp giao diện demo desktop.
 
 ## 3. Tiến độ đã hoàn thành
 
@@ -42,7 +43,7 @@ Bộ test hiện có bao gồm:
 - Test biên cho `price`, `stock`, `discount`, `rating` và độ dài `name`.
 - Test hồi quy cho sai kiểu dữ liệu và đọc CSV.
 
-**Kết quả kiểm tra gần nhất:** `10 passed`.
+**Kết quả kiểm tra gần nhất:** `35 passed`.
 
 Lệnh đã sử dụng:
 
@@ -69,6 +70,8 @@ Lệnh đã sử dụng:
 
 - Đã có chương trình chạy thực nghiệm tự động bằng `experiment.py`.
 - Đã có chương trình demo tương tác bằng `main.py`.
+- Đã chuyển mô hình tình huống bộ nhớ từ C sang Python thuần, không cần cài compiler.
+- Đã bổ sung giao diện desktop `app.py` để chạy analyzer/fuzzer và xem CSV, biểu đồ.
 - Đã có công cụ tái hiện finding bằng `reproduce_crash.py`.
 - Đã có chức năng sinh biểu đồ và file tổng hợp kết quả.
 - Đã hoàn thiện README hướng dẫn cài đặt, chạy test, chạy fuzzing và tái hiện finding.
@@ -81,9 +84,11 @@ Lệnh đã sử dụng:
 | Parser JSON/CSV | Hoàn thành | `analyzer/parser.py` |
 | Validation nghiệp vụ | Hoàn thành | `analyzer/validator.py` |
 | Tính toán kết quả | Hoàn thành | `analyzer/product_analyzer.py` |
-| Test suite | Hoàn thành bước cơ bản | `10 passed` |
+| Test suite | Đạt | `35 passed` |
 | Black-box fuzzer | Hoàn thành bước triển khai | `fuzzing/blackbox_fuzzer.py` |
 | White-box fuzzer | Hoàn thành bước triển khai | `fuzzing/whitebox_fuzzer.py` |
+| Memory model fuzzer Python | Hoàn thành bước port | `fuzzing/memory_model.py`, `fuzzing/memory_fuzzer.py` |
+| Giao diện desktop demo | Đã triển khai | `app.py` |
 | Báo cáo CSV/JSON | Đã triển khai | `reports/` |
 | So sánh thực nghiệm | Đang cập nhật số liệu | Chạy `experiment.py` |
 | Hoàn thiện báo cáo và slide | Đang thực hiện | `REPORT.md`, `SLIDES.md` |
@@ -148,14 +153,14 @@ Sau khi chạy, kiểm tra các file `reports/summary.json`, `reports/blackbox_r
 2. Trình bày kiến trúc `parser -> validator -> calculator -> output`.
 3. Chạy một input hợp lệ và một input sai để minh họa analyzer.
 4. Giải thích sự khác nhau giữa black-box và white-box fuzzing.
-5. Chạy hoặc mở kết quả của hai fuzzer.
-6. Trình bày CSV, finding, coverage và biểu đồ được sinh ra.
-7. So sánh hai phương pháp theo coverage, finding, thời gian và độ phức tạp triển khai.
+5. Dùng giao diện `app.py` để chạy black-box, white-box và memory model; xem bảng CSV và biểu đồ.
+6. Trình bày finding, coverage và kết quả experiment đã sinh ra.
+7. So sánh black-box và white-box theo coverage, finding, thời gian và độ phức tạp triển khai.
 8. Nêu phần đã hoàn thành, phần đang cập nhật và kế hoạch hoàn thiện.
 
 ## 10. Kết luận tiến độ
 
-Đề tài đã hoàn thành phần nền tảng gồm Product Analyzer, bộ kiểm thử cơ bản, black-box fuzzer, white-box fuzzer và các công cụ sinh báo cáo. Kết quả kiểm thử hiện tại cho thấy test suite cơ bản đang chạy ổn định với `10 passed`.
+Đề tài đã hoàn thành phần nền tảng gồm Product Analyzer, black-box/white-box fuzzer, Python memory model, giao diện demo desktop và công cụ sinh báo cáo. Kết quả kiểm thử hiện tại là `35 passed`.
 
 Phần trọng tâm cần hoàn thiện tiếp theo là chạy thực nghiệm có kiểm soát, cập nhật số liệu thực tế, phân tích finding và hoàn chỉnh báo cáo so sánh. Sau khi hoàn tất các bước này, dự án có thể dùng để demo đầy đủ từ lúc tạo input, chạy analyzer, ghi nhận finding đến lúc tổng hợp coverage và biểu đồ.
 
@@ -317,4 +322,4 @@ Chạy toàn bộ các test tự động bằng lệnh:
 .venv\Scripts\python.exe -m pytest
 ```
 
-Kết quả hiện tại của test suite là `10 passed`. Các ví dụ trên cũng có thể dùng làm input seed cho black-box fuzzer và làm cơ sở để kiểm tra coverage của white-box fuzzer.
+Kết quả hiện tại của test suite là `35 passed`. Các ví dụ trên cũng có thể dùng làm input seed cho black-box fuzzer và làm cơ sở để kiểm tra coverage của white-box fuzzer.

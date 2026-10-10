@@ -4,15 +4,31 @@
 
 Product Analyzer Fuzz Testing là đồ án mô phỏng quy trình kiểm thử độ tin cậy và an toàn của một thành phần xử lý dữ liệu sản phẩm thương mại điện tử. Chương trình nhận sản phẩm ở định dạng JSON hoặc CSV, xác thực trường dữ liệu và kiểu, kiểm tra các giới hạn nghiệp vụ, sau đó tính giá sau giảm và giá trị tồn kho.
 
-Dự án kết hợp black-box fuzzing để quan sát hành vi từ bên ngoài, white-box fuzzing để tận dụng coverage của mã Python, và một harness C để mô phỏng các rủi ro về biên buffer, kiểu dữ liệu, cấp phát và vòng đời bộ nhớ. Kết quả được lưu thành báo cáo để có thể xem lại input, trạng thái xử lý và phân loại CWE.
+Dự án kết hợp black-box fuzzing để quan sát hành vi từ bên ngoài, white-box fuzzing để tận dụng coverage của mã Python, và một mô hình bộ nhớ viết hoàn toàn bằng Python để mô phỏng rủi ro về giới hạn buffer, kiểu dữ liệu, cấp phát và vòng đời bộ nhớ. Kết quả được lưu thành báo cáo để có thể xem lại input, trạng thái xử lý và phân loại CWE.
 
-Mục tiêu là giúp thử nghiệm có hệ thống với dữ liệu hợp lệ, dữ liệu biên và dữ liệu bất thường; so sánh cách hai phương pháp fuzzing tiếp cận chương trình; đồng thời thực hành nhận diện các lớp điểm yếu bộ nhớ. Harness C chỉ mô phỏng và chặn các trạng thái nguy hiểm, không chủ ý tạo hỏng bộ nhớ thật. CWE là nhãn phân loại, không khẳng định sản phẩm có lỗ hổng hay CVE đã được cấp.
+Mục tiêu là giúp thử nghiệm có hệ thống với dữ liệu hợp lệ, dữ liệu biên và dữ liệu bất thường; so sánh hai phương pháp fuzzing chính; đồng thời thực hành nhận diện các lớp điểm yếu bộ nhớ. Mô hình bộ nhớ chỉ mô phỏng và phân loại trạng thái nguy hiểm, không truy cập hay làm hỏng bộ nhớ thật. CWE là nhãn phân loại, không khẳng định sản phẩm có lỗ hổng hay CVE đã được cấp.
 
-Dự án triển khai hai phương pháp:
+Dự án có hai phương pháp fuzzing chính cho Product Analyzer và một mô hình bộ nhớ bổ trợ:
 
 - **Black-box fuzzing**: fuzzer không sử dụng thông tin bên trong mã nguồn, chỉ gửi input và quan sát output, exception hoặc timeout.
 - **White-box fuzzing**: fuzzer biết mã nguồn và sử dụng coverage feedback để giữ lại những input đi qua dòng xử lý mới.
-- **Native memory fuzzing**: harness C mô phỏng nhập dữ liệu sản phẩm, kiểm tra biên/kiểu và vòng đời bộ nhớ; fuzzer ghi kết quả theo CWE.
+- **Memory-model fuzzing**: Python mô phỏng kiểm tra biên/kiểu và vòng đời bộ nhớ; fuzzer ghi kết quả theo CWE, không cần C compiler.
+
+## Bắt đầu nhanh
+
+Mở PowerShell tại thư mục dự án, sau đó chạy:
+
+```powershell
+python --version
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pytest
+python app.py
+```
+
+Kết quả mong đợi: test kết thúc thành công và cửa sổ **Product Analyzer | Fuzz Lab** mở ra. Có thể bỏ qua bước kích hoạt môi trường và gọi trực tiếp `.venv\Scripts\python.exe` như các ví dụ bên dưới.
 
 ## 1. Chức năng chính
 
@@ -49,7 +65,7 @@ Fuzzer tạo hoặc biến đổi nhiều loại input bất thường:
 
 Fuzzer theo dõi các kết quả `VALID`, `INVALID`, `EXCEPTION`, `TIMEOUT`, `INVALID_OUTPUT` và `LOGIC_BUG`. Finding được lưu để có thể kiểm tra lại.
 
-Harness native bổ sung các tình huống giới hạn tên, sai kiểu, con trỏ bắt buộc bị thiếu, cấp phát quá lớn, phép nhân kích thước bị tràn, rò rỉ bộ nhớ, giải phóng hai lần và truy cập sau khi giải phóng. Đây là mô hình an toàn có kiểm soát: không thực hiện ghi tràn, dereference con trỏ null, double-free hoặc leak heap thật.
+Mô hình bộ nhớ bổ sung các tình huống giới hạn tên, sai kiểu, con trỏ bắt buộc bị thiếu, cấp phát quá lớn, phép nhân kích thước bị tràn, rò rỉ bộ nhớ, giải phóng hai lần và truy cập sau khi giải phóng. Đây là mô hình an toàn có kiểm soát: không thực hiện ghi tràn, dereference con trỏ null, double-free hoặc leak heap thật.
 
 Các finding được gắn CWE để mô tả lớp lỗi, gồm CWE-121, CWE-190, CWE-401, CWE-415, CWE-416, CWE-476 và CWE-789. CWE là phân loại điểm yếu, không phải bằng chứng một lỗ hổng đã tồn tại trong sản phẩm. Cột CVE để trống; chỉ điền CVE sau khi có lỗ hổng cụ thể được xác minh và mã CVE chính thức.
 
@@ -170,14 +186,14 @@ ATPM/
 │   ├── mutations.py           # Biến đổi input
 │   ├── blackbox_fuzzer.py     # Black-box executor và oracle
 │   ├── whitebox_fuzzer.py     # Coverage-guided fuzzer
-│   └── c_memory_fuzzer.py     # Fuzzer cho mô hình native và báo cáo CWE
-├── c_targets/
-│   └── product_memory_model.c # Mô phỏng kiểu, biên và vòng đời cấp phát
+│   ├── memory_model.py        # Mô phỏng các tình huống bộ nhớ bằng Python
+│   └── memory_fuzzer.py       # Fuzzer cho memory model và báo cáo CWE
 ├── tests/                     # Test normal, boundary, regression
 ├── corpus/                    # Seed input hợp lệ và không hợp lệ
 ├── crashes/                   # Finding do fuzzer lưu lại
 ├── reports/                   # CSV, JSON và biểu đồ
 ├── BAO_CAO_TIEN_DO.md         # Báo cáo tiến độ thực hiện đề tài
+├── app.py                     # Giao diện desktop để demo và xem kết quả
 ├── main.py                    # Menu demo tương tác
 ├── experiment.py              # Chạy thực nghiệm tự động
 ├── reporting.py               # Đọc kết quả và tạo biểu đồ
@@ -194,14 +210,21 @@ Mở PowerShell tại thư mục project:
 ```powershell
 python --version
 python -m venv .venv
-.venv\Scripts\activate
+.\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
+Nếu PowerShell chặn chạy script kích hoạt, chỉ cho phép trong cửa sổ PowerShell hiện tại rồi kích hoạt lại:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+.\.venv\Scripts\Activate.ps1
+```
+
 Kết quả mong đợi là Python 3.12 trở lên và các package `pytest`, `coverage`, `hypothesis`, `matplotlib` được cài trong virtual environment.
 
-Để chạy native memory fuzzing, cài một C compiler có lệnh `gcc`, `clang` hoặc `cc` trong `PATH`. Trên Windows có thể dùng GCC từ MSYS2 hoặc LLVM Clang. Các phần Python vẫn chạy khi chưa cài compiler; native fuzzer sẽ trả trạng thái `SKIPPED`.
+Giao diện desktop dùng Tkinter có sẵn trong bộ cài Python trên Windows. Mô hình bộ nhớ đã được chuyển hoàn toàn sang Python nên không cần cài C compiler.
 
 Có thể dùng trực tiếp interpreter trong môi trường ảo nếu chưa activate:
 
@@ -220,6 +243,8 @@ Các test hiện có gồm:
 - `test_normal.py`: sản phẩm hợp lệ và JSON sai cú pháp.
 - `test_boundary.py`: giá trị biên của price, stock, discount, rating và name.
 - `test_regression.py`: sai kiểu dữ liệu và đọc CSV.
+- `test_python_memory_model.py`: kết quả mô phỏng các tình huống CWE và input record sai.
+- `test_memory_fuzzer.py`: các ca sinh, thống kê CWE và file CSV của memory-model fuzzer.
 
 Đo coverage của test suite:
 
@@ -245,7 +270,24 @@ Menu gồm:
 4. **Generate Charts**: tạo biểu đồ từ các CSV đã có.
 5. **Show Crash Results**: liệt kê các file finding trong `crashes/`.
 6. **Generate Report**: chạy experiment 1.000 input và tạo summary/chart.
-7. **Exit**: thoát chương trình.
+7. **Run Memory Model Fuzzing**: chạy 100 ca mô phỏng bộ nhớ bằng Python.
+8. **Exit**: thoát chương trình.
+
+### Giao diện mô phỏng
+
+Chạy giao diện desktop để trình bày trực quan:
+
+```powershell
+.venv\Scripts\python.exe app.py
+```
+
+Giao diện có ba màn hình:
+
+1. **Phân tích sản phẩm**: sửa JSON, bấm **Phân tích** để xem `valid`, phép tính, errors và warnings. Bấm **Nạp ví dụ** để khôi phục sản phẩm mẫu.
+2. **Phòng thí nghiệm fuzzing**: chọn số input từ 1 đến 10.000, rồi chạy riêng Black-box, White-box, Memory Model hoặc **Chạy toàn bộ**.
+3. **Kết quả & biểu đồ**: chọn CSV để xem các dòng kết quả, bấm **Tạo biểu đồ** để cập nhật chart rồi chọn tên chart để xem trước.
+
+Các tác vụ fuzzing chạy nền để cửa sổ vẫn phản hồi. Bắt đầu với 100 input để demo nhanh; dùng 1.000 hoặc 10.000 khi chạy thực nghiệm chính thức.
 
 ## 8. Chạy fuzzing bằng command line
 
@@ -259,21 +301,23 @@ Chạy experiment gồm cả hai phương pháp:
 
 Tham số `--count` là số input cho mỗi fuzzer. Số liệu không được viết thủ công; chương trình lấy trực tiếp từ lần chạy và ghi vào các file report.
 
-Các file sinh ra:
+Experiment chạy cả ba bộ thử nghiệm với cùng `--count`. Các kết quả được ghi vào:
 
 - `reports/blackbox_results.csv`: từng iteration, loại input, kết quả, lỗi và thời gian.
 - `reports/whitebox_results.csv`: từng iteration, kết quả và số coverage point.
-- `reports/c_memory_results.csv`: từng ca native, kết quả mô phỏng, CWE và CVE (để trống nếu chưa có CVE xác minh).
+- `reports/memory_results.csv`: từng ca mô hình bộ nhớ Python, kết quả mô phỏng, CWE và CVE (để trống nếu chưa có CVE xác minh).
 - `reports/summary.json`: thống kê tổng hợp của lần experiment gần nhất.
 - `reports/charts/input_results.png`: phân bố kết quả black-box.
 - `reports/charts/whitebox_coverage.png`: diễn biến coverage của white-box.
-- `reports/charts/native_cwe_classifications.png`: số phân loại CWE, gồm cả trường hợp bị chặn, nếu có report native.
+- `reports/charts/memory_cwe_classifications.png`: số phân loại CWE, gồm cả trường hợp bị chặn, nếu có report memory model.
 
-Chạy riêng harness C trong menu chọn `Run C Memory Fuzzing`, hoặc chạy toàn bộ experiment. Với compiler đã có trong `PATH`:
+Chạy riêng memory model fuzzer bằng Python:
 
 ```powershell
-.venv\Scripts\python.exe -c "from fuzzing.c_memory_fuzzer import CMemoryFuzzer; print(CMemoryFuzzer().run(100))"
+.venv\Scripts\python.exe -c "from fuzzing.memory_fuzzer import MemoryModelFuzzer; print(MemoryModelFuzzer().run(100))"
 ```
+
+Trong `summary.json`, kết quả được phân theo các khóa `blackbox`, `whitebox`, `memory_model` và `input_count`. Mỗi lần chạy sẽ cập nhật các file report tương ứng; hãy giữ lại hoặc sao chép kết quả nếu cần so sánh nhiều lần thực nghiệm.
 
 ## 9. Tái hiện finding
 
@@ -330,3 +374,11 @@ Các input bất thường chỉ phục vụ kiểm thử cục bộ. Project kh
 ## 14. Báo cáo tiến độ
 
 Xem [BAO_CAO_TIEN_DO.md](BAO_CAO_TIEN_DO.md) để theo dõi phần đã hoàn thành, minh chứng test, phần đang thực hiện, kế hoạch tiếp theo và kịch bản trình bày với giảng viên.
+
+## 15. Xử lý lỗi thường gặp
+
+- **Không kích hoạt được `.venv` trong PowerShell**: chạy `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned`, hoặc không kích hoạt và dùng trực tiếp `.venv\Scripts\python.exe`.
+- **Báo `No module named pytest` hoặc `coverage`**: kiểm tra đã kích hoạt `.venv`, sau đó chạy `python -m pip install -r requirements.txt`.
+- **Không thấy biểu đồ hoặc bảng kết quả trống**: chạy một fuzzer hoặc experiment trước; biểu đồ chỉ được tạo từ các CSV đã có.
+- **Không mở được cửa sổ giao diện**: chạy `python -c "import tkinter; print('Tkinter OK')"`. Nếu import thất bại, cài/repair Python trên Windows và bật thành phần Tcl/Tk.
+- **Muốn chạy test không phụ thuộc lệnh kích hoạt**: dùng `.venv\Scripts\python.exe -m pytest` từ thư mục dự án.
