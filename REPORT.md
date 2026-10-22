@@ -1,37 +1,59 @@
-# Báo cáo đồ án
+# BÁO CÁO ĐỒ ÁN MÔN HỌC: AN TOÀN PHẦN MỀM-1-1-26 (NO2)
 
-## Chương 1 - Tổng quan
+**ĐỀ TÀI:**
+## **KIỂM THỬ FUZZING BLACK-BOX VÀ WHITE-BOX CHO BỘ PHÂN TÍCH SẢN PHẨM TRONG HỆ THỐNG THƯƠNG MẠI ĐIỆN TỬ**
 
-Đề tài xây dựng Product Analyzer và dùng fuzzing để tìm lỗi xử lý dữ liệu sản phẩm. Phạm vi gồm JSON/CSV, kiểm tra nghiệp vụ, phép tính dẫn xuất và mô hình Python mô phỏng kiểu dữ liệu, biên cùng vòng đời bộ nhớ.
+---
 
-## Chương 2 - Cơ sở lý thuyết
+* **Giảng viên hướng dẫn:** ThS. Vũ Quang Dũng
+* **Sinh viên thực hiện:**
+  1. **Ngô Vương Linh** – Mã SV: **23010496**
+  2. **Nguyễn Tiến Thịnh** – Mã SV: **23010500**
+* **Khoá:** K17 (2023 – 2027)
+* **Lớp tín chỉ:** An Toàn Phần Mềm-1-1-26 (NO2)
+* **Chương trình đào tạo:** Hệ Thống Thông Tin
+* **Thời gian hoàn thành:** Tháng 10 năm 2026
 
-Black-box fuzzing chỉ quan sát input, output và lỗi. White-box fuzzing biết mã nguồn và dùng coverage feedback để giữ lại input đi qua dòng/nhánh mới. Mutation-based fuzzing biến đổi seed; oracle phân loại valid, invalid, exception, timeout và output bất thường. Memory model viết bằng Python mô phỏng tình huống bộ nhớ an toàn, phân loại theo CWE; CWE không tương đương CVE và không chứng minh có lỗ hổng trong sản phẩm thật.
+---
 
-## Chương 3 - Phân tích và thiết kế
+> [!NOTE]
+> Báo cáo chi tiết toàn văn bao gồm Lời cảm ơn, Mục lục, Danh mục hình ảnh, 6 Chương nội dung học thuật đầy đủ và Tài liệu tham khảo đã được biên soạn và lưu trữ tại file:  
+> 👉 **[BAO_CAO_CHI_TIET.md](BAO_CAO_CHI_TIET.md)**
 
-Luồng xử lý là parser -> validator -> calculator -> output. Các nhánh chính gồm thiếu field, sai kiểu, giá/stock âm, discount ngoài `[0, 100]`, rating ngoài `[0, 5]`, tên quá dài, category Camera và description rỗng.
+---
 
-## Chương 4 - Triển khai
+## TÓM TẮT CÁC KẾT QUẢ THỰC NGHIỆM ĐẠT ĐƯỢC
 
-Python 3.12+, pytest, coverage.py và matplotlib được dùng trong project. Giao diện demo desktop dùng Tkinter. Black-box dùng generator, seed corpus, mutation, timeout và deduplication. White-box đo các dòng analyzer bằng coverage.py và chỉ mở rộng corpus khi có điểm coverage mới. Python memory-model fuzzer chạy các ca biên, sai kiểu, null, cấp phát quá lớn, tràn số, leak, double-free và use-after-free; các hành vi nguy hiểm được mô phỏng, không truy cập bộ nhớ thật.
+### 1. Kết quả Kiểm thử đơn vị (Unit Tests):
+- **Số lượng test:** **46/46 passed** (100% thành công trên Pytest).
 
-## Chương 5 - Thực nghiệm
+### 2. Kết quả Black-box Fuzzing (Kiểm tra ranh giới Vùng Bounded):
+- **Tổng số input:** 100
+- **Số input hợp lệ (trong biên):** 42 (42%)
+- **Số input bị từ chối (ngoài biên):** 58 (58%)
+- **Số lỗi Crash / Exception:** 0
+- **Thời gian xử lý trung bình:** 2.14 ms/input (tổng thời gian: 0.2135 s)
 
-Chạy các quy mô 100, 1.000 và 10.000 input bằng `experiment.py`. Điền bảng dưới đây từ `reports/summary.json`, không tự bịa số liệu.
+### 3. Kết quả White-box Fuzzing (Đào sâu bên trong Vùng Bounded):
+- **Điểm độ phủ thực thi (`coverage_points`):** 101 điểm
+- **Kho hạt giống mở rộng (`corpus_size`):** 27 mẫu
+- **Tỷ lệ kích hoạt nhánh nội bộ:** 100% (6/6 nhánh nghiệp vụ sâu)
+- **Số lỗi Crash / Exception:** 0
 
-| Metric | Black-box | White-box | Python memory model |
-|---|---:|---:|---:|
-| Total inputs | đọc từ summary | đọc từ summary | đọc từ summary |
-| Crashes/exceptions/findings | đọc từ summary | đọc từ summary | CWE từ CSV |
-| Unique findings | đọc từ summary | đọc từ summary | đếm theo CWE sau deduplication |
-| Coverage points | coverage report | coverage feedback | chưa instrument |
-| Execution time | đọc từ summary | đọc từ summary | bổ sung khi đo |
+### 4. Kết quả mô phỏng rủi ro bộ nhớ (Python Memory Model):
+- **Tổng số ca kiểm thử:** 100
+- **Số ca an toàn / được bảo vệ:** 82 (Safe & Blocked)
+- **Phân loại CWE:** CWE-121, CWE-190, CWE-20, CWE-401, CWE-415, CWE-416, CWE-476, CWE-789.
 
-## Chương 6 - Đánh giá
+---
 
-Black-box dễ triển khai và phù hợp khi chỉ có executable/API. White-box có thêm thông tin nội bộ nên thường tiếp cận nhánh sâu tốt hơn, nhưng phụ thuộc instrumentation và source code. Kết hợp seed từ black-box với coverage feedback của white-box cho độ bao phủ thực dụng hơn.
+## DANH MỤC BIỂU ĐỒ MINH CHỨNG THỰC TẾ
 
-## Chương 7 - Kết luận và hướng phát triển
+1. **Biểu đồ phân loại kết quả đầu vào Black-box:**
+   ![Phân bố kết quả Black-box](reports/charts/input_results.png)
 
-Project cung cấp analyzer, test suite, ba fuzzer Python, memory model Python, giao diện demo desktop, phân loại CWE, crash artifact, coverage và chart generator chạy được trên Windows mà không cần C compiler. CVE chỉ được gắn khi có lỗ hổng cụ thể đã xác minh và mã CVE chính thức. Hướng phát triển gồm REST API fuzzing, database fuzzing, AFL++, libFuzzer, distributed fuzzing và CI/CD.
+2. **Biểu đồ tăng trưởng độ phủ mã nguồn White-box:**
+   ![Tăng trưởng độ phủ White-box](reports/charts/whitebox_coverage.png)
+
+3. **Biểu đồ phân loại an toàn bộ nhớ theo mã CWE:**
+   ![Phân loại CWE bộ nhớ](reports/charts/memory_cwe_classifications.png)

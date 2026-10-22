@@ -2,16 +2,16 @@
 
 ## Mô tả dự án
 
-Product Analyzer Fuzz Testing là đồ án mô phỏng quy trình kiểm thử độ tin cậy và an toàn của một thành phần xử lý dữ liệu sản phẩm thương mại điện tử. Chương trình nhận sản phẩm ở định dạng JSON hoặc CSV, xác thực trường dữ liệu và kiểu, kiểm tra các giới hạn nghiệp vụ, sau đó tính giá sau giảm và giá trị tồn kho.
+Product Analyzer Fuzz Testing là đồ án mô phỏng quy trình kiểm thử độ tin cậy và an toàn của một thành phần xử lý dữ liệu sản phẩm thương mại điện tử. Chương trình nhận sản phẩm ở định dạng JSON hoặc CSV, xác thực trường dữ liệu và kiểu, kiểm tra các giới hạn nghiệp vụ, sau đó tính giá sau giảm, giá trị tồn kho và phân hạng sản phẩm.
 
-Dự án kết hợp black-box fuzzing để quan sát hành vi từ bên ngoài, white-box fuzzing để tận dụng coverage của mã Python, và một mô hình bộ nhớ viết hoàn toàn bằng Python để mô phỏng rủi ro về giới hạn buffer, kiểu dữ liệu, cấp phát và vòng đời bộ nhớ. Kết quả được lưu thành báo cáo để có thể xem lại input, trạng thái xử lý và phân loại CWE.
+Dự án kết hợp **black-box fuzzing** để kiểm tra ranh giới ngoài biên và vùng xác định (**Bounded Region**), **white-box fuzzing** có định hướng để **đào sâu các nhánh logic nội bộ bên trong vùng Bounded**, và một mô hình bộ nhớ viết hoàn toàn bằng Python để mô phỏng rủi ro về giới hạn buffer, kiểu dữ liệu, cấp phát và vòng đời bộ nhớ. Kết quả được lưu thành báo cáo CSV, JSON và biểu đồ trực quan để có thể xem lại input, trạng thái xử lý và phân loại CWE.
 
 Mục tiêu là giúp thử nghiệm có hệ thống với dữ liệu hợp lệ, dữ liệu biên và dữ liệu bất thường; so sánh hai phương pháp fuzzing chính; đồng thời thực hành nhận diện các lớp điểm yếu bộ nhớ. Mô hình bộ nhớ chỉ mô phỏng và phân loại trạng thái nguy hiểm, không truy cập hay làm hỏng bộ nhớ thật. CWE là nhãn phân loại, không khẳng định sản phẩm có lỗ hổng hay CVE đã được cấp.
 
 Dự án có hai phương pháp fuzzing chính cho Product Analyzer và một mô hình bộ nhớ bổ trợ:
 
-- **Black-box fuzzing**: fuzzer không sử dụng thông tin bên trong mã nguồn, chỉ gửi input và quan sát output, exception hoặc timeout.
-- **White-box fuzzing**: fuzzer biết mã nguồn và sử dụng coverage feedback để giữ lại những input đi qua dòng xử lý mới.
+- **Black-box fuzzing**: fuzzer coi hệ thống như hộp đen, áp dụng phân tích giá trị biên (Boundary Value Analysis - BVA) để kiểm tra xem hệ thống có bảo vệ và từ chối đúng các giá trị nằm ngoài vùng Bounded hay không.
+- **White-box fuzzing**: fuzzer biết mã nguồn, ưu tiên sinh dữ liệu hợp lệ trong vùng Bounded và dùng `coverage.py` để giữ lại input làm tăng số dòng mã analyzer được thực thi. Đây là phản hồi theo độ phủ dòng, không phải đo độ phủ nhánh hay phân tích luồng dữ liệu.
 - **Memory-model fuzzing**: Python mô phỏng kiểm tra biên/kiểu và vòng đời bộ nhớ; fuzzer ghi kết quả theo CWE, không cần C compiler.
 
 ## Bắt đầu nhanh
@@ -28,50 +28,61 @@ python -m pytest
 python app.py
 ```
 
-Kết quả mong đợi: test kết thúc thành công và cửa sổ **Product Analyzer | Fuzz Lab** mở ra. Có thể bỏ qua bước kích hoạt môi trường và gọi trực tiếp `.venv\Scripts\python.exe` như các ví dụ bên dưới.
+Kết quả mong đợi: toàn bộ **46 tests** kết thúc thành công và cửa sổ **Product Analyzer | Fuzz Lab** mở ra. Có thể bỏ qua bước kích hoạt môi trường và gọi trực tiếp `.venv\Scripts\python.exe` như các ví dụ bên dưới.
 
 ## 1. Chức năng chính
 
-### 1.1. Phân tích sản phẩm
+### 1.1. Từ điển dữ liệu & Đặc tả nạp Record (Data Dictionary & Schema)
 
-Product Analyzer thực hiện các công việc sau:
+Hệ thống quản lý bản ghi sản phẩm chuẩn thông qua đặc tả tường minh tại `analyzer/schema.py`:
 
-1. Đọc một sản phẩm từ JSON hoặc CSV.
-2. Kiểm tra field bắt buộc: `id`, `name`, `category`, `price`, `stock`, `discount`, `rating`.
-3. Kiểm tra kiểu dữ liệu và giới hạn nghiệp vụ:
-	- `id` không được rỗng.
-	- `name` phải là chuỗi, không rỗng và không dài quá 100 ký tự.
-	- `price` phải là số và không âm.
-	- `stock` phải là số nguyên và không âm.
-	- `discount` nằm trong khoảng từ 0 đến 100.
-	- `rating` nằm trong khoảng từ 0 đến 5.
-	- `category` và `description` phải là chuỗi nếu được cung cấp.
-4. Tính toán:
-	- Giá sau giảm: `price * (1 - discount / 100)`.
-	- Giá trị tồn kho: `price * stock`.
-	- Điểm rating trung bình của sản phẩm.
-5. Trả về trạng thái hợp lệ, lỗi và cảnh báo.
+| Trường (Field) | Bắt buộc | Kiểu dữ liệu | Giới hạn kích cỡ / Vùng Bounded | Ý nghĩa nghiệp vụ |
+| :--- | :---: | :--- | :--- | :--- |
+| `id` | Có | `string` | Không được rỗng hoặc chỉ có khoảng trắng | Mã định danh sản phẩm |
+| `name` | Có | `string` | Không rỗng; tối đa 100 ký tự | Tên thương mại của sản phẩm |
+| `category` | Có | `string` | Phải là chuỗi; hiện chưa áp dụng giới hạn độ dài hoặc cấm chuỗi rỗng | Danh mục ngành hàng |
+| `price` | Có | `float` / `int` | Không âm; cảnh báo nếu $> 10^{12}$ | Đơn giá niêm yết |
+| `stock` | Có | `int` | Không âm; cảnh báo nếu $> 1.000.000$ | Số lượng sản phẩm tồn kho |
+| `discount` | Có | `float` / `int` | $0.0 \le \text{discount} \le 100.0$ (%) | Tỷ lệ chiết khấu giảm giá |
+| `rating` | Có | `float` / `int` | $0.0 \le \text{rating} \le 5.0$ (sao) | Điểm đánh giá chất lượng trung bình |
+| `description` | Không | `string` / `null` | Tối đa 1.000 ký tự; dài hơn chỉ tạo cảnh báo | Thông tin mô tả chi tiết tính năng |
 
-### 1.2. Fuzzing
+Các giới hạn tối đa của `price` và `stock` là ngưỡng cảnh báo, không làm bản ghi mất tính hợp lệ. Schema trong `analyzer/schema.py` mô tả từ điển dữ liệu; quy tắc thực thi hiện tại nằm trong `analyzer/validator.py`.
 
-Fuzzer tạo hoặc biến đổi nhiều loại input bất thường:
+### 1.2. Đường ống xử lý bản ghi & Logic sâu trong vùng Bounded
 
-- Thiếu field hoặc object rỗng.
-- Giá trị âm, bằng 0, cực lớn và giá trị biên.
-- Sai kiểu như chuỗi, danh sách, object, `null` và boolean.
-- Chuỗi rỗng, chuỗi rất dài, ký tự đặc biệt và Unicode.
-- JSON sai cú pháp.
-- Field bổ sung không được định nghĩa.
+Một Record được nạp và phân tích qua 3 tầng:
 
-Fuzzer theo dõi các kết quả `VALID`, `INVALID`, `EXCEPTION`, `TIMEOUT`, `INVALID_OUTPUT` và `LOGIC_BUG`. Finding được lưu để có thể kiểm tra lại.
+1. **Tầng 1 - Parser:** Đọc JSON hoặc CSV một sản phẩm. JSON phải là object; CSV phải có đúng một dòng dữ liệu. Lỗi cú pháp/định dạng được chuyển thành `InputParseError` và trả về như lỗi phân tích.
+2. **Tầng 2 - Validator:** Kiểm tra trường bắt buộc, kiểu dữ liệu, các giới hạn được thực thi và các ngưỡng cảnh báo như trong bảng. Lỗi validation được ghi vào `errors` và đánh dấu `valid = False`; cảnh báo không làm bản ghi mất tính hợp lệ.
+3. **Tầng 3 - Calculator (Đào sâu bên trong vùng Bounded):** Khi bản ghi hợp lệ (`errors` rỗng):
+   - **Tính toán tài chính & làm tròn tiền tệ:**
+     - Giá sau giảm: $\text{final\_price} = \text{round}(price \times (1 - \frac{discount}{100}), 2)$ (tránh sai số làm tròn số thực Floating-point).
+     - Giá trị tồn kho: $\text{inventory\_value} = price \times stock$.
+   - **Nhánh tương tác đa biến (Inter-field constraints):**
+     - Cảnh báo sản phẩm hết hàng nhưng vẫn cài đặt giảm giá ($stock = 0 \land discount > 0$).
+     - Cảnh báo sắp hết hàng ($0 < stock \le 5$).
+   - **Nhánh chính sách ngành hàng:**
+     - Đồ điện tử giá cao ($price \ge 10.000.000$) giảm giá $> 20\%$ phải yêu cầu phê duyệt quản lý.
+     - Sách (`category == "Book"`) không được vượt trần chiết khấu của nhà xuất bản ($discount > 50\%$).
+     - Cảnh báo sản phẩm ngành `Camera` nên kèm thông tin bảo hành.
+   - **Nhánh giảm giá 100%:** Cảnh báo sản phẩm tặng kèm miễn phí ($0$ đồng).
+   - **Nhánh phân hạng sản phẩm (`badge`):** Phân loại `BEST_SELLER` ($rating \ge 4.5 \land stock > 10$), `UNDER_REVIEW` ($rating < 2.0$), hoặc `STANDARD`.
 
-Mô hình bộ nhớ bổ sung các tình huống giới hạn tên, sai kiểu, con trỏ bắt buộc bị thiếu, cấp phát quá lớn, phép nhân kích thước bị tràn, rò rỉ bộ nhớ, giải phóng hai lần và truy cập sau khi giải phóng. Đây là mô hình an toàn có kiểm soát: không thực hiện ghi tràn, dereference con trỏ null, double-free hoặc leak heap thật.
+### 1.3. Fuzzing: Black-box vs White-box
 
-Các finding được gắn CWE để mô tả lớp lỗi, gồm CWE-121, CWE-190, CWE-401, CWE-415, CWE-416, CWE-476 và CWE-789. CWE là phân loại điểm yếu, không phải bằng chứng một lỗ hổng đã tồn tại trong sản phẩm. Cột CVE để trống; chỉ điền CVE sau khi có lỗ hổng cụ thể được xác minh và mã CVE chính thức.
+- **Black-box Fuzzing (Kiểm tra vùng Bounded):** Bộ sinh `generate_boundary_blackbox` tạo các input nhắm trực tiếp vào các ranh giới biên theo BVA:
+  - Cận âm: $price = -1$, $stock = -1$, $discount = -0.01$, $rating = -0.1$.
+  - Cận trần: $discount = 100.01$, $rating = 5.1$, $name$ dài 101 ký tự.
+  - Chuỗi rỗng, khoảng trắng, sai kiểu (`None`, `bool`, `list`), JSON hỏng cú pháp.
+  - Oracle phân loại: `VALID`, `INVALID`, `EXCEPTION`, `TIMEOUT`, `INVALID_OUTPUT` và `LOGIC_BUG`. Ngoại lệ được ghi nhận là `EXCEPTION`, không phải crash của tiến trình.
+- **White-box Fuzzing (Đào sâu bên trong vùng Bounded):** Bộ sinh nhắm đến các bản ghi hợp lệ và các tổ hợp nghiệp vụ trong analyzer. Sau mỗi lần chạy, fuzzer giữ input làm tăng tập hợp dòng mã analyzer đã quan sát vào corpus trong bộ nhớ. Một số seed/mutation vẫn có thể không hợp lệ.
+- Chỉ số `coverage_points` là số dòng mã analyzer duy nhất được ghi nhận bởi cơ chế feedback của fuzzer; không phải phần trăm line/branch coverage của toàn dự án.
+- **Memory-model Fuzzing:** Mô phỏng an toàn các tình huống bộ nhớ mức thấp (CWE-121, CWE-190, CWE-401, CWE-415, CWE-416, CWE-476, CWE-789).
 
 ## 2. Ví dụ input và output
 
-Input JSON hợp lệ:
+Input JSON hợp lệ trong vùng Bounded:
 
 ```json
 {
@@ -94,112 +105,108 @@ Output tương ứng:
   "final_price": 1350000.0,
   "inventory_value": 30000000,
   "average_rating": 4.5,
+  "badge": "BEST_SELLER",
   "errors": [],
   "warnings": [
-	 "Camera products should include a warranty description"
+    "Camera products should include a warranty description"
   ]
 }
 ```
 
-Khi input không hợp lệ, `valid` là `false`, các phép tính trả về `null` và nguyên nhân được ghi trong mảng `errors`.
+Khi input không hợp lệ (ngoài biên), `valid` là `false`, các phép tính trả về `null` và nguyên nhân được ghi trong mảng `errors`.
 
 ## 3. Luồng hoạt động
 
 ### 3.1. Luồng phân tích sản phẩm
 
 ```text
-Input JSON/CSV
-		|
-		v
-	  Parser
-		|
-		v
-	Validator ---- lỗi ----> Output errors
-		|
-		v
-	Calculator
-		|
-		v
-Output valid, calculations, warnings
+Input Raw (JSON/CSV)
+        |
+        v
+    [Tầng 1] Parser (Kiểm tra cú pháp & ép kiểu)
+        |
+        v
+    [Tầng 2] Validator (Kiểm tra kiểu dữ liệu & Vùng Bounded)
+        |
+        +-- Ngoài biên / Sai kiểu --> Output errors (valid: false)
+        |
+        v (Trong vùng Bounded)
+    [Tầng 3] Calculator & Business Rules
+        |
+        +-- Inter-field interactions (stock=0 & discount>0, low stock)
+        +-- Category policies (Electronics >20%, Book >50%, Camera warranty)
+        +-- Badge classification (BEST_SELLER, UNDER_REVIEW, STANDARD)
+        +-- Precision rounding (final_price)
+        |
+        v
+Output valid: true, derived values, badge, warnings
 ```
 
-Chi tiết:
-
-1. `parser.py` chuyển chuỗi JSON/CSV thành dictionary Python.
-2. Nếu input sai cú pháp hoặc không phải object, parser tạo `InputParseError` và analyzer trả lỗi có cấu trúc.
-3. `validator.py` kiểm tra field, kiểu dữ liệu, giới hạn và cảnh báo dữ liệu bất thường.
-4. Nếu có lỗi validation, analyzer dừng tính toán và trả danh sách lỗi.
-5. Nếu dữ liệu hợp lệ, `product_analyzer.py` tính giá sau giảm, giá trị tồn kho và rating.
-6. Với sản phẩm thuộc category `Camera` hoặc thiếu description, hệ thống thêm warning.
-
-### 3.2. Luồng black-box fuzzing
+### 3.2. Luồng Black-box Fuzzing (Boundary Checking)
 
 ```text
-Seed corpus / Random generator
-				 |
-				 v
-			 Mutation
-				 |
-				 v
-	Product Analyzer như hộp đen
-				 |
-				 v
- Oracle: valid / invalid / exception / timeout / logic bug
-				 |
-				 v
- CSV report + crash/finding files
+Boundary Value Generator (BVA) / Mutation
+                 |
+                 v
+    Product Analyzer như hộp đen
+                 |
+                 v
+  Oracle: Phân loại output và lỗi quan sát được
+  (VALID / INVALID / EXCEPTION / TIMEOUT / INVALID_OUTPUT / LOGIC_BUG)
+                 |
+                 v
+    CSV report + crash/finding files
 ```
 
-Black-box fuzzer chỉ gọi hàm chương trình thông qua input text. Nó không đọc coverage và không quyết định input dựa trên nhánh code. Mỗi input được chạy trong giới hạn timeout; lỗi mới được fingerprint để tránh lưu trùng.
-
-### 3.3. Luồng white-box fuzzing
+### 3.3. Luồng White-box Fuzzing (Inside-Bounded Refinement)
 
 ```text
-Initial corpus
-		|
-		v
-Chọn seed và mutate
-		|
-		v
-Chạy analyzer + coverage.py
-		|
-		+-- Có dòng mới? --> Giữ input vào corpus
-		|
-		+-- Exception? ----> Lưu finding
-		|
-		v
-Lặp lại đến đủ số input
+Bounded Input Generator (Targeted) + Corpus
+                 |
+                 v
+    Chạy analyzer + Đo độ phủ coverage.py
+                 |
+                 +-- Thực thi dòng analyzer mới? --> Giữ seed vào Corpus
+                 |
+                 +-- Exception/Crash? -----------> Lưu finding
+                 |
+                 v
+    Lặp lại và ghi nhận các dòng analyzer mới
 ```
-
-White-box fuzzer đo các dòng đã chạy trong thư mục `analyzer/`. Input tạo ra coverage mới sẽ được thêm vào corpus để làm seed cho các vòng sau.
 
 ## 4. Cấu trúc thư mục
 
 ```text
 ATPM/
 ├── analyzer/
-│   ├── parser.py              # Đọc và chuyển đổi JSON/CSV
-│   ├── validator.py           # Kiểm tra luật nghiệp vụ
-│   └── product_analyzer.py    # Điều phối và tính toán
+│   ├── schema.py              # Đặc tả Data Dictionary và giới hạn vùng Bounded
+│   ├── parser.py              # Đọc và chuyển đổi cú pháp JSON/CSV
+│   ├── validator.py           # Kiểm tra kiểu và quy tắc biên sơ cấp
+│   └── product_analyzer.py    # Điều phối, tính toán và các nhánh nghiệp vụ sâu
 ├── fuzzing/
-│   ├── generators.py          # Sinh input và seed corpus
-│   ├── mutations.py           # Biến đổi input
+│   ├── generators.py          # Bộ sinh test biên (BVA) và test sâu trong Bounded
+│   ├── mutations.py           # Biến đổi đột biến input
 │   ├── blackbox_fuzzer.py     # Black-box executor và oracle
-│   ├── whitebox_fuzzer.py     # Coverage-guided fuzzer
+│   ├── whitebox_fuzzer.py     # Coverage-guided fuzzer đào sâu vùng Bounded
 │   ├── memory_model.py        # Mô phỏng các tình huống bộ nhớ bằng Python
 │   └── memory_fuzzer.py       # Fuzzer cho memory model và báo cáo CWE
-├── tests/                     # Test normal, boundary, regression
-├── corpus/                    # Seed input hợp lệ và không hợp lệ
+├── tests/
+│   ├── test_normal.py         # Test sản phẩm hợp lệ và JSON sai cú pháp
+│   ├── test_boundary.py       # Test các giá trị biên ngoài (BVA)
+│   ├── test_data_dictionary.py # Test tính đầy đủ của Data Dictionary và Schema
+│   ├── test_bounded_whitebox.py # Test các nhánh nghiệp vụ sâu bên trong vùng Bounded
+│   ├── test_regression.py     # Test hồi quy sai kiểu và đọc CSV
+│   ├── test_python_memory_model.py # Test kết quả mô phỏng CWE
+│   └── test_memory_fuzzer.py   # Test memory-model fuzzer
 ├── crashes/                   # Finding do fuzzer lưu lại
 ├── reports/                   # CSV, JSON và biểu đồ
-├── BAO_CAO_TIEN_DO.md         # Báo cáo tiến độ thực hiện đề tài
 ├── app.py                     # Giao diện desktop để demo và xem kết quả
 ├── main.py                    # Menu demo tương tác
 ├── experiment.py              # Chạy thực nghiệm tự động
 ├── reporting.py               # Đọc kết quả và tạo biểu đồ
 ├── reproduce_crash.py         # Chạy lại finding đã lưu
 ├── requirements.txt           # Dependency Python
-├── REPORT.md                  # Khung báo cáo đồ án
+├── REPORT.md                  # Khung báo cáo đồ án chi tiết
 └── SLIDES.md                  # Nội dung slide thuyết trình
 ```
 
@@ -222,31 +229,17 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 .\.venv\Scripts\Activate.ps1
 ```
 
-Kết quả mong đợi là Python 3.12 trở lên và các package `pytest`, `coverage`, `hypothesis`, `matplotlib` được cài trong virtual environment.
-
-Giao diện desktop dùng Tkinter có sẵn trong bộ cài Python trên Windows. Mô hình bộ nhớ đã được chuyển hoàn toàn sang Python nên không cần cài C compiler.
-
-Có thể dùng trực tiếp interpreter trong môi trường ảo nếu chưa activate:
-
-```powershell
-.venv\Scripts\python.exe --version
-```
+Mã nguồn yêu cầu Python 3.10 trở lên. Các package `pytest`, `coverage`, `hypothesis` và `matplotlib` được cài trong virtual environment. Không cần cài C/C++ compiler; memory model là mô phỏng bằng Python, không thao tác bộ nhớ native.
 
 ## 6. Chạy test thông thường
+
+Chạy toàn bộ **46 test cases**:
 
 ```powershell
 .venv\Scripts\python.exe -m pytest
 ```
 
-Các test hiện có gồm:
-
-- `test_normal.py`: sản phẩm hợp lệ và JSON sai cú pháp.
-- `test_boundary.py`: giá trị biên của price, stock, discount, rating và name.
-- `test_regression.py`: sai kiểu dữ liệu và đọc CSV.
-- `test_python_memory_model.py`: kết quả mô phỏng các tình huống CWE và input record sai.
-- `test_memory_fuzzer.py`: các ca sinh, thống kê CWE và file CSV của memory-model fuzzer.
-
-Đo coverage của test suite:
+Đo code coverage của toàn bộ test suite:
 
 ```powershell
 .venv\Scripts\python.exe -m coverage run -m pytest
@@ -254,44 +247,30 @@ Các test hiện có gồm:
 .venv\Scripts\python.exe -m coverage html
 ```
 
-Sau đó mở `htmlcov/index.html` để xem báo cáo chi tiết.
+Sau đó mở `htmlcov/index.html` trên trình duyệt để xem chi tiết từng dòng mã được bao phủ.
 
 ## 7. Chạy chương trình demo
+
+### Menu dòng lệnh (CLI):
 
 ```powershell
 .venv\Scripts\python.exe main.py
 ```
 
-Menu gồm:
-
-1. **Run Normal Analysis**: nhập JSON và xem kết quả analyzer.
-2. **Run Black-box Fuzzing**: chạy black-box với 100 input.
-3. **Run White-box Fuzzing**: chạy white-box với 100 input.
-4. **Generate Charts**: tạo biểu đồ từ các CSV đã có.
-5. **Show Crash Results**: liệt kê các file finding trong `crashes/`.
-6. **Generate Report**: chạy experiment 1.000 input và tạo summary/chart.
-7. **Run Memory Model Fuzzing**: chạy 100 ca mô phỏng bộ nhớ bằng Python.
-8. **Exit**: thoát chương trình.
-
-### Giao diện mô phỏng
-
-Chạy giao diện desktop để trình bày trực quan:
+### Giao diện đồ họa (GUI Desktop):
 
 ```powershell
 .venv\Scripts\python.exe app.py
 ```
 
-Giao diện có ba màn hình:
+Giao diện gồm ba tab trực quan:
+1. **Phân tích sản phẩm**: Nhập/sửa JSON, bấm **Phân tích** để xem kết quả hợp lệ, tính toán tài chính, badge và cảnh báo.
+2. **Phòng thí nghiệm fuzzing**: Chọn số lượng input (100, 1000, 10000), chạy riêng Black-box, White-box, Memory Model hoặc **Chạy toàn bộ**.
+3. **Kết quả & biểu đồ**: Xem bảng dữ liệu CSV và xem trước các biểu đồ trực quan.
 
-1. **Phân tích sản phẩm**: sửa JSON, bấm **Phân tích** để xem `valid`, phép tính, errors và warnings. Bấm **Nạp ví dụ** để khôi phục sản phẩm mẫu.
-2. **Phòng thí nghiệm fuzzing**: chọn số input từ 1 đến 10.000, rồi chạy riêng Black-box, White-box, Memory Model hoặc **Chạy toàn bộ**.
-3. **Kết quả & biểu đồ**: chọn CSV để xem các dòng kết quả, bấm **Tạo biểu đồ** để cập nhật chart rồi chọn tên chart để xem trước.
+## 8. Chạy thực nghiệm tự động
 
-Các tác vụ fuzzing chạy nền để cửa sổ vẫn phản hồi. Bắt đầu với 100 input để demo nhanh; dùng 1.000 hoặc 10.000 khi chạy thực nghiệm chính thức.
-
-## 8. Chạy fuzzing bằng command line
-
-Chạy experiment gồm cả hai phương pháp:
+Chạy experiment gồm cả ba bộ thử nghiệm để tự động xuất CSV và biểu đồ:
 
 ```powershell
 .venv\Scripts\python.exe -m experiment --count 100
@@ -299,59 +278,28 @@ Chạy experiment gồm cả hai phương pháp:
 .venv\Scripts\python.exe -m experiment --count 10000
 ```
 
-Tham số `--count` là số input cho mỗi fuzzer. Số liệu không được viết thủ công; chương trình lấy trực tiếp từ lần chạy và ghi vào các file report.
+Các đầu ra cập nhật tại `reports/`:
+- `reports/blackbox_results.csv`: Kết quả phân loại từng input ngoài/trong biên.
+- `reports/whitebox_results.csv`: Sự gia tăng điểm độ phủ (`coverage_points`) theo thời gian.
+- `reports/memory_results.csv`: Kết quả mô phỏng các ca CWE.
+- `reports/summary.json`: Thống kê tổng hợp số lượng.
+- `reports/charts/`: Các biểu đồ PNG tương ứng.
 
-Experiment chạy cả ba bộ thử nghiệm với cùng `--count`. Các kết quả được ghi vào:
+## 9. So sánh chuyên sâu: Black-box vs White-box
 
-- `reports/blackbox_results.csv`: từng iteration, loại input, kết quả, lỗi và thời gian.
-- `reports/whitebox_results.csv`: từng iteration, kết quả và số coverage point.
-- `reports/memory_results.csv`: từng ca mô hình bộ nhớ Python, kết quả mô phỏng, CWE và CVE (để trống nếu chưa có CVE xác minh).
-- `reports/summary.json`: thống kê tổng hợp của lần experiment gần nhất.
-- `reports/charts/input_results.png`: phân bố kết quả black-box.
-- `reports/charts/whitebox_coverage.png`: diễn biến coverage của white-box.
-- `reports/charts/memory_cwe_classifications.png`: số phân loại CWE, gồm cả trường hợp bị chặn, nếu có report memory model.
+| Tiêu chí so sánh | Black-box Testing / Fuzzing | White-box Testing / Fuzzing |
+| :--- | :--- | :--- |
+| **Mục tiêu chính** | Kiểm tra **vùng Bounded** (ranh giới ngoài biên và lọc dữ liệu rác) | Đào sâu **bên trong vùng Bounded** (khi dữ liệu đã hợp lệ về biên) |
+| **Kiến thức về hệ thống** | Dựa vào đặc tả và quan sát input/output | Có mã nguồn; đo các dòng analyzer được thực thi bằng `coverage.py` |
+| **Kỹ thuật sinh dữ liệu** | BVA, input sai kiểu/thiếu trường và mutation | Sinh input hướng đến vùng Bounded, mutation và giữ seed khi có dòng thực thi mới |
+| **Phản hồi (Feedback)** | Phân loại `VALID`, `INVALID`, `EXCEPTION`, `TIMEOUT`, `INVALID_OUTPUT` hoặc `LOGIC_BUG` | Số dòng mã analyzer mới được quan sát (`coverage_points`); không phải coverage nhánh |
+| **Trọng tâm kiểm thử** | Nhập sai kiểu, chuỗi rỗng, số âm, vượt ngưỡng nghiệp vụ, JSON sai cú pháp | Tổ hợp nghiệp vụ, tính toán giá và các nhánh cảnh báo; fuzzer ghi nhận exception nhưng không tự xác minh tính đúng đắn nghiệp vụ |
 
-Chạy riêng memory model fuzzer bằng Python:
-
-```powershell
-.venv\Scripts\python.exe -c "from fuzzing.memory_fuzzer import MemoryModelFuzzer; print(MemoryModelFuzzer().run(100))"
-```
-
-Trong `summary.json`, kết quả được phân theo các khóa `blackbox`, `whitebox`, `memory_model` và `input_count`. Mỗi lần chạy sẽ cập nhật các file report tương ứng; hãy giữ lại hoặc sao chép kết quả nếu cần so sánh nhiều lần thực nghiệm.
-
-## 9. Tái hiện finding
-
-Khi fuzzer lưu một finding dạng JSON, chạy:
-
-```powershell
-.venv\Scripts\python.exe reproduce_crash.py crashes\blackbox\crash_001.json
-```
-
-Chương trình đọc lại field `input`, gửi input vào analyzer và in ra kết quả hiện tại cùng thông tin đã lưu trong finding.
-
-## 10. Ý nghĩa black-box và white-box
-
-| Tiêu chí | Black-box | White-box |
-|---|---|---|
-| Biết source code | Không | Có |
-| Coverage feedback | Không | Có |
-| Cách chọn input | Random, seed, mutation | Mutation có coverage feedback |
-| Triển khai | Đơn giản | Phức tạp hơn |
-| Tìm nhánh sâu | Có thể khó | Có khả năng tốt hơn |
-| Output chính | CSV, finding, thống kê | CSV, coverage, finding |
-
-Black-box phù hợp khi chỉ có executable hoặc API. White-box phù hợp khi có source code và muốn tối ưu input để tiếp cận nhiều nhánh xử lý hơn. Trong thực tế nên kết hợp cả hai phương pháp.
-
-## 11. Lưu ý về kết quả
-
-Các số liệu trong báo cáo phải lấy sau khi chạy experiment thực tế từ `reports/summary.json` và các CSV tương ứng. Không sử dụng các con số minh họa trong tài liệu như kết quả chính thức.
-
-Các input bất thường chỉ phục vụ kiểm thử cục bộ. Project không cố tình tạo lỗ hổng khai thác thật; exception và finding được ghi nhận để phục vụ phân tích lỗi.
-
-## 12. Phân loại CWE và CVE
+## 10. Phân loại CWE trong mô hình bộ nhớ
 
 | Tình huống mô phỏng | Kết quả | CWE |
 |---|---|---|
+| Cú pháp, kiểu dữ liệu hoặc thao tác không hợp lệ bị từ chối | BLOCKED | CWE-20 |
 | Tên vượt sức chứa buffer stack, bị chặn trước khi copy | BLOCKED | CWE-121 |
 | Nhân kích thước cấp phát vượt giới hạn số nguyên | BLOCKED | CWE-190 |
 | Cấp phát không được giải phóng khi kết thúc scope | DETECTED | CWE-401 |
@@ -362,23 +310,8 @@ Các input bất thường chỉ phục vụ kiểm thử cục bộ. Project kh
 
 `BLOCKED` nghĩa là input mô phỏng một điều kiện nguy hiểm nhưng guard đã ngăn hành vi; `DETECTED` nghĩa là mô hình ownership phát hiện trạng thái lỗi. Không diễn giải các kết quả này thành CVE của sản phẩm thật.
 
-## 13. Hướng phát triển
+## 11. Tài liệu kèm theo
 
-- Bổ sung branch coverage và path coverage chi tiết.
-- Thêm Hypothesis cho property-based testing.
-- Fuzz REST API và dữ liệu database.
-- Tích hợp AFL++ hoặc libFuzzer cho native program.
-- Chạy fuzzing trong CI/CD hoặc Docker.
-- Xây dựng dashboard theo dõi coverage và finding.
-
-## 14. Báo cáo tiến độ
-
-Xem [BAO_CAO_TIEN_DO.md](BAO_CAO_TIEN_DO.md) để theo dõi phần đã hoàn thành, minh chứng test, phần đang thực hiện, kế hoạch tiếp theo và kịch bản trình bày với giảng viên.
-
-## 15. Xử lý lỗi thường gặp
-
-- **Không kích hoạt được `.venv` trong PowerShell**: chạy `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned`, hoặc không kích hoạt và dùng trực tiếp `.venv\Scripts\python.exe`.
-- **Báo `No module named pytest` hoặc `coverage`**: kiểm tra đã kích hoạt `.venv`, sau đó chạy `python -m pip install -r requirements.txt`.
-- **Không thấy biểu đồ hoặc bảng kết quả trống**: chạy một fuzzer hoặc experiment trước; biểu đồ chỉ được tạo từ các CSV đã có.
-- **Không mở được cửa sổ giao diện**: chạy `python -c "import tkinter; print('Tkinter OK')"`. Nếu import thất bại, cài/repair Python trên Windows và bật thành phần Tcl/Tk.
-- **Muốn chạy test không phụ thuộc lệnh kích hoạt**: dùng `.venv\Scripts\python.exe -m pytest` từ thư mục dự án.
+- [REPORT.md](REPORT.md): Nội dung báo cáo đồ án gồm 7 chương.
+- [HUONG_DAN_BAO_CAO_DEMO.md](HUONG_DAN_BAO_CAO_DEMO.md): Hướng dẫn từng bước chuẩn bị demo, thuyết trình và bảo vệ trước giảng viên.
+- [SLIDES.md](SLIDES.md): Dàn ý slide thuyết trình báo cáo.

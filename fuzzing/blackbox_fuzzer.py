@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from pathlib import Path
 from typing import Any, Callable
 
-from .generators import generate_product, seed_corpus
+from .generators import generate_boundary_blackbox, generate_product, seed_corpus
 from .mutations import mutate
 
 
@@ -36,7 +36,12 @@ class BlackBoxFuzzer:
         started = time.perf_counter()
         seeds = seed_corpus()
         for iteration in range(count):
-            raw = self.rng.choice(seeds) if iteration < len(seeds) else (generate_product(self.rng) if self.rng.random() < 0.6 else mutate(self.rng.choice(seeds), self.rng))
+            if iteration < len(seeds):
+                raw = self.rng.choice(seeds)
+            elif self.rng.random() < 0.6:
+                raw = generate_boundary_blackbox(self.rng)
+            else:
+                raw = mutate(self.rng.choice(seeds), self.rng)
             t0 = time.perf_counter()
             kind = ""
             error = ""

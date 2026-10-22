@@ -2,7 +2,10 @@
 
 from typing import Any
 
+from .schema import BOUNDED_CONSTRAINTS, PRODUCT_DATA_DICTIONARY
+
 MAX_NAME_LENGTH = 100
+MAX_ID_LENGTH = 50
 REQUIRED_FIELDS = ("id", "name", "category", "price", "stock", "discount", "rating")
 
 
