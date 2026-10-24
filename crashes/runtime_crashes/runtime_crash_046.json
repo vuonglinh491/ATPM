@@ -1,0 +1,6 @@
+{
+  "iteration": 49,
+  "error": "RuntimeError: Unhandled Native Crash: Null-byte character caused buffer deserialization fault!",
+  "input": "{\"id\": \"CRASH_N1_148\", \"name\": \"Product\\u0000Poison_67\", \"category\": \"Other\", \"price\": 100, \"stock\": 5, \"discount\": 0, \"rating\": 4, \"description\": {}}",
+  "timestamp": 1792846844.6631215
+}

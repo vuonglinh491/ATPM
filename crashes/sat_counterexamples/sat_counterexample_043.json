@@ -1,0 +1,19 @@
+{
+  "iteration": 65,
+  "invariant": "INV_1_PRICE_INCREASE",
+  "error": "Phản ví dụ SAT (Vi phạm INV_1): Chiết khấu 99.9% nhưng giá sau giảm (199,900.0 đ) lại lớn hơn giá gốc (100,000 đ)!",
+  "input": "{\"id\": \"SAT_EDGE_392\", \"name\": \"Product\", \"category\": \"Other\", \"price\": 100000, \"stock\": 5, \"discount\": 99.9, \"rating\": 4.2, \"description\": \"demo\"}",
+  "result": {
+    "valid": true,
+    "final_price": 199900.0,
+    "inventory_value": 500000,
+    "average_rating": 4.2,
+    "errors": [],
+    "warnings": [
+      "FAULT_INJECTED: Glitch formula applied price surge instead of discount",
+      "Low stock threshold reached (<=5 items remaining)"
+    ],
+    "badge": "STANDARD"
+  },
+  "timestamp": 1792846815.9065554
+}

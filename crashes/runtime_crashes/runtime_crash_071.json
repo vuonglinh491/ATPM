@@ -1,0 +1,6 @@
+{
+  "iteration": 74,
+  "error": "ZeroDivisionError: division by zero",
+  "input": "{\"id\": \"CRASH_ZDIV_796\", \"name\": \"Product\", \"category\": \"ZERO_DIV_TRIGGER\", \"price\": 100, \"stock\": 0, \"discount\": 0, \"rating\": 0, \"description\": \"demo\"}",
+  "timestamp": 1792846844.7038584
+}

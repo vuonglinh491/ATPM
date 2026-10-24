@@ -1,0 +1,8 @@
+{
+  "iteration": 75,
+  "invariant": "CRASH_EXCEPTION",
+  "error": "ZeroDivisionError: division by zero",
+  "input": "{\"id\": \"SAT_ZERO_309\", \"name\": \"Product\", \"category\": \"ZERO_DIV_TRIGGER\", \"price\": 1000000, \"stock\": 0, \"discount\": 0, \"rating\": 0, \"description\": \"Rating=0 gay chia cho 0 trong tinh toan hieu qua\"}",
+  "result": {},
+  "timestamp": 1792846815.9218228
+}

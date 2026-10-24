@@ -1,0 +1,8 @@
+{
+  "iteration": 81,
+  "invariant": "CRASH_EXCEPTION",
+  "error": "ZeroDivisionError: division by zero",
+  "input": "{\"id\": \"SAT_ZERO_391\", \"name\": \"Product\", \"category\": \"ZERO_DIV_TRIGGER\", \"price\": 1000000, \"stock\": 0, \"discount\": 0, \"rating\": 0, \"description\": \"x\"}",
+  "result": {},
+  "timestamp": 1792846815.9328625
+}

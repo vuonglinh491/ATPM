@@ -1,0 +1,18 @@
+{
+  "iteration": 6,
+  "invariant": "INV_2_NEGATIVE_PRICE",
+  "error": "Phản ví dụ SAT (Vi phạm INV_2): Giá sau giảm bị âm (-1,000,000.0 đ) do chiết khấu 150% vượt trần nhưng không bị chặn!",
+  "input": "{\"id\": \"SAT_INV2_320\", \"name\": \"Product\", \"category\": \"SAT_NEGATIVE_PRICE\", \"price\": 2000000, \"stock\": 5, \"discount\": 150, \"rating\": 4.0, \"description\": \"Chiet khau 150% vuot tran gay gia am\"}",
+  "result": {
+    "valid": true,
+    "final_price": -1000000.0,
+    "inventory_value": 10000000,
+    "average_rating": 4.0,
+    "errors": [],
+    "warnings": [
+      "Low stock threshold reached (<=5 items remaining)"
+    ],
+    "badge": "STANDARD"
+  },
+  "timestamp": 1792846815.7973294
+}

@@ -1,0 +1,19 @@
+{
+  "iteration": 62,
+  "invariant": "INV_1_PRICE_INCREASE",
+  "error": "Phản ví dụ SAT (Vi phạm INV_1): Chiết khấu 10.0% nhưng giá sau giảm (550,000.0 đ) lại lớn hơn giá gốc (500,000 đ)!",
+  "input": "{\"id\": \"SAT_INV1_871\", \"name\": \"Product\", \"category\": \"GLITCH_DISCOUNT\", \"price\": 500000, \"stock\": 5, \"discount\": 10.0, \"rating\": 4.5, \"description\": \"San pham gay loi tang gia sau giam\"}",
+  "result": {
+    "valid": true,
+    "final_price": 550000.0,
+    "inventory_value": 2500000,
+    "average_rating": 4.5,
+    "errors": [],
+    "warnings": [
+      "FAULT_INJECTED: Glitch formula applied price surge instead of discount",
+      "Low stock threshold reached (<=5 items remaining)"
+    ],
+    "badge": "STANDARD"
+  },
+  "timestamp": 1792846815.9011471
+}

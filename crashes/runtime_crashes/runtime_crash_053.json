@@ -1,0 +1,6 @@
+{
+  "iteration": 56,
+  "error": "SystemError: Fatal Engine Crash: Malicious binary payload injected into JSON deserializer!",
+  "input": "{\"id\": \"CRASH_RAW\", \"name\": \"Fatal\", \"category\": \"Other\", \"price\": 100, \"stock\": 1, \"discount\": 0, \"rating\": 5, \"extra\": \"__FATAL_PAYLOAD__\"}",
+  "timestamp": 1792846844.6744747
+}

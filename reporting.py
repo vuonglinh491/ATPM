@@ -5,6 +5,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+import matplotlib
+matplotlib.use("Agg")  # Use headless Agg backend to prevent Tkinter thread conflicts
+import matplotlib.pyplot as plt
+
 
 def read_results(path: str | Path) -> list[dict[str, str]]:
     with Path(path).open(encoding="utf-8", newline="") as handle:
@@ -12,15 +16,18 @@ def read_results(path: str | Path) -> list[dict[str, str]]:
 
 
 def generate_charts(report_dir: str | Path = "reports") -> list[str]:
-    import matplotlib.pyplot as plt
-
     report_dir = Path(report_dir)
     chart_dir = report_dir / "charts"
     chart_dir.mkdir(parents=True, exist_ok=True)
     outputs: list[str] = []
+
     blackbox = read_results(report_dir / "blackbox_results.csv") if (report_dir / "blackbox_results.csv").exists() else []
     whitebox = read_results(report_dir / "whitebox_results.csv") if (report_dir / "whitebox_results.csv").exists() else []
     memory_model = read_results(report_dir / "memory_results.csv") if (report_dir / "memory_results.csv").exists() else []
+    sat_results = read_results(report_dir / "sat_fuzzing_results.csv") if (report_dir / "sat_fuzzing_results.csv").exists() else []
+    crash_results = read_results(report_dir / "crash_simulation_results.csv") if (report_dir / "crash_simulation_results.csv").exists() else []
+    unsafe_memory = read_results(report_dir / "unsafe_memory_results.csv") if (report_dir / "unsafe_memory_results.csv").exists() else []
+
     if blackbox:
         counts: dict[str, int] = {}
         for row in blackbox:
@@ -34,6 +41,7 @@ def generate_charts(report_dir: str | Path = "reports") -> list[str]:
         plt.savefig(path, dpi=140)
         plt.close()
         outputs.append(str(path))
+
     if memory_model:
         cwe_counts: dict[str, int] = {}
         for row in memory_model:
@@ -50,6 +58,7 @@ def generate_charts(report_dir: str | Path = "reports") -> list[str]:
             plt.savefig(path, dpi=140)
             plt.close()
             outputs.append(str(path))
+
     if whitebox:
         points = [int(row["coverage_points"]) for row in whitebox]
         plt.figure(figsize=(7, 4))
@@ -62,6 +71,55 @@ def generate_charts(report_dir: str | Path = "reports") -> list[str]:
         plt.savefig(path, dpi=140)
         plt.close()
         outputs.append(str(path))
+
+    if sat_results:
+        sat_counts: dict[str, int] = {}
+        for row in sat_results:
+            sat_counts[row["result"]] = sat_counts.get(row["result"], 0) + 1
+        plt.figure(figsize=(7, 4))
+        colors = {"VALID": "#2ca02c", "INVALID": "#1f77b4", "LOGIC_BUG": "#d62728", "EXCEPTION": "#9467bd", "TIMEOUT": "#ff7f0e"}
+        bar_colors = [colors.get(k, "#7f7f7f") for k in sat_counts.keys()]
+        plt.bar(sat_counts.keys(), sat_counts.values(), color=bar_colors)
+        plt.title("SAT Fuzzing: Invariant Counterexamples")
+        plt.ylabel("Inputs")
+        plt.tight_layout()
+        path = chart_dir / "sat_counterexamples.png"
+        plt.savefig(path, dpi=140)
+        plt.close()
+        outputs.append(str(path))
+
+    if crash_results:
+        crash_counts: dict[str, int] = {}
+        for row in crash_results:
+            crash_counts[row["result"]] = crash_counts.get(row["result"], 0) + 1
+        plt.figure(figsize=(7, 4))
+        colors = {"VALID": "#2ca02c", "INVALID": "#1f77b4", "CRASH": "#d62728"}
+        bar_colors = [colors.get(k, "#d62728") for k in crash_counts.keys()]
+        plt.bar(crash_counts.keys(), crash_counts.values(), color=bar_colors)
+        plt.title("Runtime Crash & Exception Simulation")
+        plt.ylabel("Inputs")
+        plt.tight_layout()
+        path = chart_dir / "crash_simulation.png"
+        plt.savefig(path, dpi=140)
+        plt.close()
+        outputs.append(str(path))
+
+    if unsafe_memory:
+        mem_counts: dict[str, int] = {}
+        for row in unsafe_memory:
+            mem_counts[row["result"]] = mem_counts.get(row["result"], 0) + 1
+        plt.figure(figsize=(7, 4))
+        colors = {"SAFE": "#2ca02c", "BLOCKED": "#1f77b4", "DETECTED": "#ff7f0e", "CRITICAL_FAULT": "#d62728"}
+        bar_colors = [colors.get(k, "#7f7f7f") for k in mem_counts.keys()]
+        plt.bar(mem_counts.keys(), mem_counts.values(), color=bar_colors)
+        plt.title("Unsafe Memory Fault Simulation")
+        plt.ylabel("Inputs")
+        plt.tight_layout()
+        path = chart_dir / "unsafe_memory_faults.png"
+        plt.savefig(path, dpi=140)
+        plt.close()
+        outputs.append(str(path))
+
     return outputs
 
 
